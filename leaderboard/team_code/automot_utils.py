@@ -947,15 +947,20 @@ def load_safetensors_weights_streaming(model, model_path):
         for file_path in files:
             file_loaded = 0
             with safe_open(file_path, framework="pt", device="cpu") as f:
-                for key in f.keys():
-                    if key.startswith("bev_encoder."):
+                for checkpoint_key in f.keys():
+                    if checkpoint_key.startswith("bev_encoder."):
                         continue
+                    # The released checkpoint still names the BEV feature projection
+                    # transfuser_proj; the model code calls it bev_encoder_proj.
+                    key = checkpoint_key
+                    if key.startswith("transfuser_proj."):
+                        key = "bev_encoder_proj." + key[len("transfuser_proj."):]
                     target = model_state.get(key)
                     if target is None:
                         unexpected_keys.append(key)
                         continue
 
-                    tensor = f.get_tensor(key)
+                    tensor = f.get_tensor(checkpoint_key)
                     if tensor.shape != target.shape:
                         unexpected_keys.append(key)
                         print(

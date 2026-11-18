@@ -408,7 +408,7 @@ class MOTAgent(autonomous_agent.AutonomousAgent):
 					},
 				]
 		
-		if IS_BENCH2DRIVE:
+		if SAVE_PATH:
 			sensors += [
 					{	
 						'type': 'sensor.camera.rgb',
@@ -542,7 +542,7 @@ class MOTAgent(autonomous_agent.AutonomousAgent):
 		bev_encoder_lidar_bev_tensor = torch.from_numpy(bev_encoder_lidar_bev).float().unsqueeze(0).to('cuda')
 		
 		# Process other sensors
-		bev = cv2.cvtColor(input_data['bev'][1][:, :, :3], cv2.COLOR_BGR2RGB)
+		bev = cv2.cvtColor(input_data['bev'][1][:, :, :3], cv2.COLOR_BGR2RGB) if SAVE_PATH else None
 		
 		result = {
 				'rgb_front': rgb_front,
@@ -1236,6 +1236,11 @@ class MOTAgent(autonomous_agent.AutonomousAgent):
 				'brake': control.brake,
 				'speed': gt_velocity,
 				'command': command,
+				# Model reasoning: the prompt and the generated decision sequence
+				# (now, +1s, +2s) the trajectory is conditioned on
+				'prompt': prompt_cleaned,
+				'decision_text': pred_decision,
+				'pred_traj': self.last_pred_traj.tolist(),
 			}
 
 			self.prev_control = control
@@ -1302,7 +1307,7 @@ class MOTAgent(autonomous_agent.AutonomousAgent):
 			tick_data["rgb"] = cv2.resize(tick_data["rgb_front"], (800, 600))
 
 			# Generate bev_traj here (before save()) by drawing trajectory on bev image
-			bev_img_for_display = tick_data['bev'].copy()
+			bev_img_for_display = tick_data['bev'].copy() if tick_data['bev'] is not None else np.zeros((512, 512, 3), np.uint8)
 			if self.last_pred_traj is not None:
 				bev_img_for_display = self._draw_trajectory_on_bev(
 					bev_img_for_display, self.last_pred_traj, self.last_target_point,
